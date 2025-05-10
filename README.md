@@ -1,5 +1,6 @@
 # 基于 Transformer 的机器翻译（英译中）
 
+
 ## 📋 项目背景
 
 
@@ -62,13 +63,13 @@ python main.py --period eval
 
 ### 模型搭建
 
-Transformer 模型结构如下图所示. 其中, 模型的主要架构包括左侧的编码器（Encoder）, 以及右侧的解码器（Decoder）两个部分. 编码器将输入序列转换为上下文向量, 解码器根据上下文向量生成目标序列. 
+Transformer 模型结构如下图所示. 其中, 主要模块包括左侧的编码器（Encoder）, 以及右侧的解码器（Decoder）两个部分. 编码器将输入序列转换为上下文向量, 解码器根据上下文向量生成目标序列. 
 
 <img src="figs/transformer.png" height="600">
 
 我们先从小的组件开始实现, 最后再将它们组合成完整的 Transformer 模型. 
 
-1. input Embedding
+1. Input Embedding
 
     在将自然语言输入模型前, 我们首先会对其进行分词, 再根据词汇表将每个词根转换为对应的 token. 例如 `i am a student .` 会被转化为 `[5, 98, 9, 415, 4]`. 这样自然语言就变成了计算机可以理解的数值形式. 当然, 对于深度学习模型来说, 这还不够. 现在每个 token 还是处于文本空间当中, 我们希望将其投影到模型的语义空间, 以便模型更好地理解和处理其特征. PyTorch 已经提供了一个模块 `torch.nn.Embedding` 用于该操作. 初始化时, 与机器翻译相关的参数包括
 
@@ -1019,37 +1020,52 @@ Chinese:  <BOS> 他 是 老师 .  <EOS>
         print(f"BLEU Score: {bleu_score:.4f}")
     ```
 
-    此外, 我们还可以手动检验一下模型的翻译效果, 代码实现如下: 
+### 案例分析
 
-    ```python
-    print("-" * 50)
-    for i in range(3):
-            print(f"Original: {en_origin[i]}")
-            print(f"Standard: {cn_standard[i]}")
-            print(f"Translated: {cn_output[i]}")
-            print("-" * 50)
-    ```
+此外, 我们还可以手动检验模型的翻译效果, 代码实现如下: 
 
-    最终的输出结果如下: 
+```python
+print("-" * 50)
+for i in range(3):
+        print(f"Original: {en_origin[i]}")
+        print(f"Standard: {cn_standard[i]}")
+        print(f"Translated: {cn_output[i]}")
+        print("-" * 50)
+```
 
-    ```txt
-    BLEU Score: 0.2322
-    --------------------------------------------------
-    Original: do you still want to talk to me ?
-    Standard Answer: 你 还 想 跟 我 谈 吗 ？
-    Translated: 你 还 想 跟 我 说 吗 ？
-    --------------------------------------------------
-    Original: i will never for ce you to marry him .
-    Standard Answer: 我永远 不会 逼 你 跟 他 结婚 . 
-    Translated: 我 不会 忘记 你 和 他 结婚 了 . 
-    --------------------------------------------------
-    Original: i 'm going to go tell tom .
-    Standard Answer: 我要 告诉 汤姆 . 
-    Translated: 我要 告诉 汤姆 . 
-    --------------------------------------------------
-    ```
+最终的输出结果如下: 
 
-    BLEU 分数为 0.2322, 说明模型的翻译效果还不错. 同时, 我们可以看到, 手动输出的几个示例中, 模型的翻译效果也较为理想. 虽然有些地方翻译得不是很正确, 例如将 "force" 翻译成了 "忘记", 但整体上还是符合逻辑且较为准确的. 
+```txt
+BLEU Score: 0.2322
+--------------------------------------------------
+Original: do you still want to talk to me ?
+Standard Answer: 你 还 想 跟 我 谈 吗 ？
+Translated: 你 还 想 跟 我 说 吗 ？
+--------------------------------------------------
+Original: i will never for ce you to marry him .
+Standard Answer: 我永远 不会 逼 你 跟 他 结婚 . 
+Translated: 我 不会 忘记 你 和 他 结婚 了 . 
+--------------------------------------------------
+Original: i 'm going to go tell tom .
+Standard Answer: 我要 告诉 汤姆 . 
+Translated: 我要 告诉 汤姆 . 
+--------------------------------------------------
+```
+
+BLEU 分数为 0.2322, 说明模型的翻译效果还不错. 同时, 我们可以看到, 手动输出的几个示例中, 模型的翻译效果也较为理想. 虽然有些地方翻译得不是很正确, 例如将 "force" 翻译成了 "忘记", 但整体上还是符合逻辑且较为准确的. 
+
+## 💙 项目心得
+
+通过本次实验，我对 Transformer 模型的结构与原理有了更加全面、深入的认识。首先，我详细剖析了多头自注意力机制（Multi‐Head Self‐Attention）、前馈网络（Feed‐Forward Network）以及残差连接与层归一化（Residual Connection & Layer Normalization）三大核心模块的内部运作原理，并通过绘制模型结构图加深记忆。
+
+在实现环节，我使用 PyTorch 从零构建了一个简化版的 Transformer 编码器–解码器架构，包括词嵌入（Embedding）、位置编码（Positional Encoding）和掩码机制（Masking）的完整流水线。通过调试和单元测试，我掌握了如何在代码层面灵活地控制注意力权重的计算、梯度反向传播与参数更新。
+
+为了验证模型在机器翻译任务上的效果，我采用了标准的 BLEU 分数作为定量评估指标，并在中英对照语料集上进行了多轮实验。实验结果显示，当训练轮次达到 10 轮以上时，模型就出现了过拟合现象，验证集的 BLEU 分数开始下降。因此，我选择在第 10 轮训练结束后保存模型，并使用该模型进行翻译任务。
+
+在手动检验环节，我随机选取了 3 个测试样本，并使用训练好的模型进行翻译。通过对比标准答案与模型翻译结果，我发现尽管存在一些细节上的不足，但整体翻译效果还是较为令人满意的。
+
+通过这次实践，我不仅加深了对前沿模型的理论理解，也在工程实现与实验评估方面积累了宝贵经验，为后续更复杂的自然语言处理项目打下了坚实基础。
+
 
 ## 📺 演示视频
 
