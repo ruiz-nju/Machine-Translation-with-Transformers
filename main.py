@@ -1,6 +1,7 @@
 import os
 import time
 import torch
+import random
 import argparse
 import numpy as np
 import torch.nn as nn
@@ -14,6 +15,16 @@ from dataset import TranslationDataset
 from torch.utils.data import DataLoader
 from torch.nn.utils.rnn import pad_sequence
 from nltk.translate.bleu_score import corpus_bleu
+
+
+import config
+
+
+def set_random_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
 
 
 def build_dataloader(dataset, batch_size=32, shuffle=True, num_workers=4):
@@ -157,32 +168,31 @@ def print_model_summary(model, depth=3):
     print("=" * 60 + "\n")
 
 
-def main(args):
-    output_dir = "outputs"
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    setup_logger(os.path.join(output_dir, "logs"))
-    # Config
-    period = args.period  # train or eval
-    d_model = 512
-    d_ff = 2048
-    n_layers = 6
-    heads = 8
-    dropout = 0.1
-    max_seq_len = 100
-    batch_size = 64
-    lr = 1e-4
-    n_epochs = 10
-    print_interval = 50
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+def reset_config(args):
+    if args.num_head:
+        config.heads = args.num_head
 
-    data_dir = "data/cmn-eng-simple"
-    train_set = TranslationDataset(data_dir, split="train")
-    val_set = TranslationDataset(data_dir, split="val")
-    test_set = TranslationDataset(data_dir, split="test")
-    train_loader = build_dataloader(train_set, batch_size=batch_size)
-    val_loader = build_dataloader(val_set, batch_size=batch_size)
-    test_loader = build_dataloader(test_set, batch_size=batch_size)
+    if args.num_layer:
+        config.n_layers = args.num_layer
+
+    config.output_dir = f"outputs/num_head_{config.heads}/num_layer_{config.n_layers}"
+
+
+def main(args):
+    reset_config(args)
+    set_random_seed(config.seed)
+    if not os.path.exists(config.output_dir):
+        os.makedirs(config.output_dir)
+    setup_logger(os.path.join(config.output_dir, "logs"))
+
+    period = args.period  # train or eval
+
+    train_set = TranslationDataset(config.data_dir, split="train")
+    val_set = TranslationDataset(config.data_dir, split="val")
+    test_set = TranslationDataset(config.data_dir, split="test")
+    train_loader = build_dataloader(train_set, batch_size=config.batch_size)
+    val_loader = build_dataloader(val_set, batch_size=config.batch_size)
+    test_loader = build_dataloader(test_set, batch_size=config.batch_size)
     en2int, cn2int, int2en, int2cn = (
         train_set.en2int,
         train_set.cn2int,
@@ -198,16 +208,16 @@ def main(args):
         src_vocab_size=en_vocab_size,
         dst_vocab_size=cn_vocab_size,
         pad_idx=PAD_ID,
-        d_model=d_model,
-        d_ff=d_ff,
-        n_layers=n_layers,
-        heads=heads,
-        dropout=dropout,
-        max_seq_len=max_seq_len,
-    ).to(device)
+        d_model=config.d_model,
+        d_ff=config.d_ff,
+        n_layers=config.n_layers,
+        heads=config.heads,
+        dropout=config.dropout,
+        max_seq_len=config.max_seq_len,
+    ).to(config.device)
     print_model_summary(model)
     if period == "train":
-        optimizer = Adam(model.parameters(), lr=lr)
+        optimizer = Adam(model.parameters(), lr=config.lr)
         criterion = nn.CrossEntropyLoss(ignore_index=PAD_ID)
 
         train_losses = []
@@ -215,7 +225,7 @@ def main(args):
         val_losses = []  # 验证损失列表
         val_accs = []  # 验证准确率列表
 
-        for epoch in range(n_epochs):
+        for epoch in range(config.n_epochs):
             model.train()
             epoch_total_loss = 0.0
             epoch_total_correct = 0.0
@@ -226,8 +236,12 @@ def main(args):
 
             tic = time.time()
             for i, batch in enumerate(train_loader):
-                x = torch.LongTensor(batch["source"]).to(device)  # torch.Size([32, 19])
-                y = torch.LongTensor(batch["target"]).to(device)  # torch.Size([32, 17])
+                x = torch.LongTensor(batch["source"]).to(
+                    config.device
+                )  # torch.Size([32, 19])
+                y = torch.LongTensor(batch["target"]).to(
+                    config.device
+                )  # torch.Size([32, 17])
                 # 由于 Transformer 是在用前 i 个 token 预测第 i+1 个 token
                 # 考虑并行计算的话，我们可以直接输入前 n-1 个 token，并行预测后 n-1 个 token
                 y_output = y[:, :-1]
@@ -255,13 +269,13 @@ def main(args):
                 epoch_total_correct += current_correct
                 epoch_total_non_pad += current_non_pad
 
-                if count % print_interval == 0 or count == total:
+                if count % config.print_interval == 0 or count == total:
                     toc = time.time()
                     interval = toc - tic
                     minutes = int(interval // 60)
                     seconds = int(interval % 60)
                     print(
-                        f"Epoch: [{epoch+1}/{n_epochs}], Batch: [{count}/{total}], "
+                        f"Epoch: [{epoch+1}/{config.n_epochs}], Batch: [{count}/{total}], "
                         f"Loss: {loss.item()}, Acc: {acc.item()}, Time: {minutes:02d}:{seconds:02d}"
                     )
                 count += 1
@@ -277,8 +291,8 @@ def main(args):
             val_total_non_pad = 0.0
             with torch.no_grad():
                 for batch in val_loader:
-                    x = torch.LongTensor(batch["source"]).to(device)
-                    y = torch.LongTensor(batch["target"]).to(device)
+                    x = torch.LongTensor(batch["source"]).to(config.device)
+                    y = torch.LongTensor(batch["target"]).to(config.device)
                     y_output = y[:, :-1]
                     y_label = y[:, 1:]
 
@@ -309,18 +323,18 @@ def main(args):
 
             # 打印训练和验证指标
             print(
-                f"Epoch: [{epoch+1}/{n_epochs}], "
+                f"Epoch: [{epoch+1}/{config.n_epochs}], "
                 f"Avg Val loss: {avg_val_loss:.4f}, Avg Val acc: {avg_val_acc:.4f}"
             )
             print("=" * 100)
 
-        model_path = os.path.join(output_dir, "final_model.pth")
+        model_path = os.path.join(config.output_dir, "final_model.pth")
         torch.save(model.state_dict(), model_path)
-        save_plot(output_dir, train_losses, train_accs, val_losses, val_accs)
+        save_plot(config.output_dir, train_losses, train_accs, val_losses, val_accs)
         print("Training completed.")
 
     elif period == "eval":
-        model_path = os.path.join(output_dir, "final_model.pth")
+        model_path = os.path.join(config.output_dir, "final_model.pth")
         if not os.path.exists(model_path):
             raise FileNotFoundError(f"Model file {model_path} not found.")
         model.load_state_dict(torch.load(model_path, weights_only=True))
@@ -330,12 +344,15 @@ def main(args):
             cn_standard = []
             cn_output = []
             for batch in tqdm(test_loader):
-                x = torch.LongTensor(batch["source"]).to(device)
-                y = torch.LongTensor(batch["target"]).to(device)
+                x = torch.LongTensor(batch["source"]).to(config.device)
+                y = torch.LongTensor(batch["target"]).to(config.device)
                 batch_size = x.shape[0]
                 max_len = y.shape[1]
                 y_output = torch.full(
-                    (batch_size, max_len), PAD_ID, dtype=torch.long, device=device
+                    (batch_size, max_len),
+                    PAD_ID,
+                    dtype=torch.long,
+                    device=config.device,
                 )
                 y_output[:, 0] = BOS_ID
                 for cur_idx in range(1, max_len):
@@ -367,6 +384,16 @@ if __name__ == "__main__":
         type=str,
         default="train",
         choices=["train", "eval"],
+    )
+    parser.add_argument(
+        "--num_head",
+        type=int,
+        default=8,
+    )
+    parser.add_argument(
+        "--num_layer",
+        type=int,
+        default=6,
     )
     args = parser.parse_args()
     main(args)

@@ -5,16 +5,16 @@
 
 
 ### 1. 机器翻译的技术演进
-机器翻译（Machine Translation, MT）作为自然语言处理（NLP）领域的核心任务之一, 经历了三个主要发展阶段: 
-- **规则驱动时代**（1950s-1990s）: 基于语言学专家制定的语法规则和双语词典进行直译, 受限于语言复杂性难以实现流畅翻译
-- **统计学习时代**（2000s-2010s）: IBM提出的基于短语的统计机器翻译（SMT）成为主流, 利用大规模双语语料库学习翻译概率模型
-- **神经网络时代**（2017-至今）: 2017 年 Google 提出的 Transformer 架构引发革命, 其自注意力机制突破了传统RNN的序列建模瓶颈
+机器翻译 (Machine Translation, MT) 作为自然语言处理 (NLP) 领域的核心任务之一, 经历了三个主要发展阶段: 
+- **规则驱动时代** (1950s-1990s): 基于语言学专家制定的语法规则和双语词典进行直译, 受限于语言复杂性难以实现流畅翻译
+- **统计学习时代** (2000s-2010s): IBM 提出的基于短语的统计机器翻译 (SMT) 成为主流, 利用大规模双语语料库学习翻译概率模型
+- **神经网络时代** (2017-至今): 2017 年 Google 提出的 Transformer 架构引发革命, 其自注意力机制突破了传统 RNN 的序列建模瓶颈
 
 ### 2. 英译中任务的特殊挑战
 中文与英语的跨语种翻译存在多重难点: 
-- **结构差异**: 英语的 SVOC（主谓宾补）结构与中文的意合语法存在映射鸿沟
-- **语义鸿沟**: 成语（如"画蛇添足"）、文化专有项（如"红包"）的等效表达问题
-- **数据稀缺性**: 高质量英中平行语料规模仅为英法双语数据的 1/5（WMT 2020 统计）
+- **结构差异**: 英语的 SVOC (主谓宾补) 结构与中文的意合语法存在映射鸿沟
+- **语义鸿沟**: 成语 (如 "画蛇添足")、文化专有项 (如 "红包") 的等效表达问题
+- **数据稀缺性**: 高质量英中平行语料规模仅为英法双语数据的 1/5 (WMT 2020 统计)
 
 ### 3. Transformer 的技术优势
 本项目选用 Transformer 架构的核心理由: 
@@ -145,7 +145,7 @@ Transformer 模型结构如下图所示. 其中, 主要模块包括左侧的编�
 
     $\text{MultiHead}(Q, K, V) = \text{Concat}(\text{head}_1, \ldots, \text{head}_h)W^O$
 
-    其中, $Q, K, V$ 分别表示查询（Query）、键（Key）和值（Value）, $h$ 表示头数, $W^O$ 是一个线性变换矩阵. 每个头的计算公式为: 
+    其中, $Q, K, V$ 分别表示查询 (Query)、键 (Key) 和值 (Value), $h$ 表示头数, $W^O$ 是一个线性变换矩阵. 每个头的计算公式为: 
 
     $\text{head}_i = \text{Attention}(QW_i^Q, KW_i^K, VW_i^V)$
 
@@ -156,24 +156,14 @@ Transformer 模型结构如下图所示. 其中, 主要模块包括左侧的编�
 
     其中, $d_k$ 是键的维度. 
     
-    Multi-Head Attention 的代码实现如下: 
+    Multi-Head Attention 的核心代码实现如下: 
 
     ```python
     class MultiHeadAttention(nn.Module):
         def __init__(self, d_model: int, heads: int, dropout: float = 0.1):
             super().__init__()
 
-            assert d_model % heads == 0, "d_model must be divisible by heads."
-            self.d_model = d_model
-            self.heads = heads
-            self.dim_head = d_model // heads
-            inner_dim = heads * self.dim_head
-            self.WQ = nn.Linear(d_model, inner_dim)
-            self.WK = nn.Linear(d_model, inner_dim)
-            self.WV = nn.Linear(d_model, inner_dim)
-            self.attend = nn.Softmax(dim=-1)
-            self.dropout = nn.Dropout(dropout)
-            self.fc = nn.Linear(inner_dim, d_model)
+            ...
             self.INF = float(1e12)
 
         def forward(
@@ -183,22 +173,6 @@ Transformer 模型结构如下图所示. 其中, 主要模块包括左侧的编�
             v: torch.Tensor,
             mask: Optional[torch.Tensor] = None,
         ) -> torch.Tensor:
-            """
-            Args:
-                q: [batch_size, q_len, d_model]
-                k: [batch_size, k_len, d_model]
-                v: [batch_size, k_len, d_model]
-                mask (optional): [batch_size, 1, q_len, k_len]
-            Returns:
-                out: [batch_size, seq_len, d_model]
-            """
-
-            assert q.shape[0] == k.shape[0] == v.shape[0], "batch size mismatch."
-            assert k.shape[1] == v.shape[1], "key and value length mismatch."
-            # [batch_size, len, d_model] 
-            # -> [batch_size, len, inner_dim] 
-            # -> [batch_size, len, heads, dim_head] 
-            # -> [batch_size, heads, len, dim_head]
             Q = rearrange(self.WQ(q), "b l (h d) -> b h l d", h=self.heads)
             K = rearrange(self.WK(k), "b l (h d) -> b h l d", h=self.heads)
             V = rearrange(self.WV(v), "b l (h d) -> b h l d", h=self.heads)
@@ -206,8 +180,6 @@ Transformer 模型结构如下图所示. 其中, 主要模块包括左侧的编�
                 self.dim_head**0.5
             )  # [batch_size, heads, q_len, k_len]
             if mask is not None:
-                # mask 为判断条件, 将 mask 为 True 的部分填充为自定义的 -inf
-                # 如果直接使用 python 自带的 inf 进行填充的话会得到 nan
                 dots.masked_fill_(mask, -self.INF)
             attn = self.attend(dots)
             out = rearrange(
@@ -236,12 +208,6 @@ Transformer 模型结构如下图所示. 其中, 主要模块包括左侧的编�
             self.relu = nn.ReLU()
 
         def forward(self, x: torch.Tensor) -> torch.Tensor:
-            """
-            Args:
-                x: [batch_size, seq_len, d_model]
-            Returns:
-                out: [batch_size, seq_len, d_model]
-            """
             out = self.linear1(x)
             out = self.relu(out)
             out = self.dropout(out)
@@ -428,10 +394,6 @@ class Transformer(nn.Module):
     def generate_mask(
         self, q_pad: torch.Tensor, k_pad: torch.Tensor, apply_causal_mask: bool = False
     ):
-        # q_pad shape: [n, q_len]
-        # k_pad shape: [n, k_len]
-        # q_pad k_pad dtype: bool
-        assert q_pad.device == k_pad.device, "padding mask must be same device."
         n, q_len = q_pad.shape
         n, k_len = k_pad.shape
 
@@ -476,81 +438,15 @@ class Transformer(nn.Module):
 
 ### 数据处理
 
-如 `input embedding` 中提到的, 我们需要将自然语言转换为计算机可以理解的数值形式. 在 `cmn-eng-simple` 数据集当中, 已经预先定义好了自然语言词语与 token 之间的一对一映射关系, 具体可见 `int2word_cn.json`、`int2word_en.json`、`word2int_cn.json`、`word2int_en.json` 四个文件, 我们可以直接使用这些文件来进行数据处理. 为了方便后续的训练和评测时按照 batch 进行处理, 我们同时将数据集封装成了 `torch.utils.data.Dataset` 的形式. 数据集的代码实现如下: 
+本次实验的任务是将中文翻译成英文, 使用的数据集包含了 21621 条中英平行语料, 每对语料中包含一条英文输入语句及其对应的中文翻译结果, 英文和中文之间使用制表符 (tab) 进行分隔. 例如: 
 
-```python
-import os
-import json
-import torch
-from torch.utils.data import Dataset
-
-SPLIT = {"train": "training", "val": "validation", "test": "testing"}
-
-
-class TranslationDataset(Dataset):
-    def __init__(self, data_dir, split="train"):
-        assert split in SPLIT.keys(), "Invalid split name."
-        split = SPLIT[split]
-        self.data_dir = data_dir
-        self.int2cn, self.int2en, self.cn2int, self.en2int = self._read_vocab()
-        data_file = os.path.join(data_dir, f"{split}.txt")
-        if not os.path.exists(data_file):
-            raise FileNotFoundError(f"Data file {data_file} not found.")
-        self.pairs = []  # [([...], [...]), (...), ...]
-        with open(data_file, "r", encoding="utf-8") as f:
-            for line in f:
-                en, cn = line.strip().split("\t")  # 制表符作为分隔符
-                # 处理英文中的@@符号
-                en = en.replace("@@", "").split()  # 默认分隔符是空格
-                cn = cn.split()
-                self.pairs.append((en, cn))
-
-    def __len__(self):
-        return len(self.pairs)
-
-    def __getitem__(self, idx):
-        en_tokens = [
-            self.en2int.get(tok, self.en2int["<UNK>"]) for tok in self.pairs[idx][0]
-        ]
-        cn_tokens = [
-            self.cn2int.get(tok, self.cn2int["<UNK>"]) for tok in self.pairs[idx][1]
-        ]
-
-        # 添加特殊标记
-        en = [self.en2int["<BOS>"]] + en_tokens + [self.en2int["<EOS>"]]
-        cn = [self.cn2int["<BOS>"]] + cn_tokens + [self.cn2int["<EOS>"]]
-
-        return torch.LongTensor(en), torch.LongTensor(cn)
-
-    def _read_vocab(self):
-        data_dir = self.data_dir
-        int2cn_file = os.path.join(data_dir, "int2word_cn.json")
-        int2en_file = os.path.join(data_dir, "int2word_en.json")
-        cn2int_file = os.path.join(data_dir, "word2int_cn.json")
-        en2int_file = os.path.join(data_dir, "word2int_en.json")
-        # 判断文件是否存在
-        if (
-            not os.path.exists(int2cn_file)
-            or not os.path.exists(int2en_file)
-            or not os.path.exists(cn2int_file)
-            or not os.path.exists(en2int_file)
-        ):
-            raise FileNotFoundError(
-                "Vocabulary files not found in the specified directory."
-            )
-        with open(int2cn_file, "r", encoding="utf-8") as f:
-            int2cn = json.load(f)
-        with open(int2en_file, "r", encoding="utf-8") as f:
-            int2en = json.load(f)
-        with open(cn2int_file, "r", encoding="utf-8") as f:
-            cn2int = json.load(f)
-        with open(en2int_file, "r", encoding="utf-8") as f:
-            en2int = json.load(f)
-
-        return int2cn, int2en, cn2int, en2int
+```txt
+it 's none of your concern . 	这不关 你 的 事 。
 ```
 
-其中, `<BOS>`、`<EOS>` 和 `<UNK>` 分别表示句子的开始、结束和未知 token. 我们可以通过如下方式检验能否正确加载数据集: 
+在数据处理阶段, 我们需要将自然语言转换为计算机可以理解的数值形式, 即 token 序列. 在 `cmn-eng-simple` 数据集当中, 预处理时使用 jieba 分词器给中文文本进行分词, 使用 BPE 分词器给英文进行分词, 并预先定义好了自然语言词语与 token 之间的一对一映射关系 (即词表), 具体可见 `int2word_cn.json`、`int2word_en.json`、`word2int_cn.json`、`word2int_en.json` 四个文件. 其中, 英文词表的大小为 3922, 中文词表的大小为 3775. 我们可以直接使用这些文件来进行数据处理. 为了方便后续的训练和评测时按照 batch 进行处理, 我们同时将数据集封装成了 `TranslationDataset` 类, 继承自 `torch.utils.data.Dataset` 类. 当我们实例化 `TranslationDataset` 类时, 会自动加载词表, 并根据词表将自然语言转换为 token 序列, 并可通过下标访问到转换成 `torch.LongTensor` 类型的英文和中文 token 序列. 具体代码可见 `dataset.py` 文件. 
+
+构建数据集后, 我们可以通过如下方式检验能否正确加载数据集: 
 
 ```python
 if __name__ == "__main__":
@@ -582,180 +478,29 @@ Chinese:  <BOS> 她 有 咬 <UNK> 的 习惯 .  <EOS>
 English:  <BOS> he is a teacher . <EOS> 
 Chinese:  <BOS> 他 是 老师 .  <EOS>  
 ```
+故数据集加载成功. 
 
-### 模型训练及评估
+### 超参数设置
 
-1. 定义超参数
+本次实验中, 我们通过 `config.py` 文件来管理超参数, 具体如下: 
 
-    ```python
-    # Config
-    period = args.period  # train or eval
-    d_model = 512 # 模型内部维度
-    d_ff = 2048 # 前馈网络维度
-    n_layers = 6 # 编码器和解码器层数
-    heads = 8 # 注意力头数
-    dropout = 0.1 # dropout 概率
-    max_seq_len = 100 # 最大序列长度
-    batch_size = 64 # 批次大小
-    lr = 1e-4 # 学习率
-    n_epochs = 60 # 训练轮数
-    print_interval = 50 # 打印间隔 
-    device = "cuda" if torch.cuda.is_available() else "cpu" # 设备
-    ```
+| 参数名         | 默认值         | 说明               |
+|----------------|---------------|--------------------|
+| seed           | 2025          | 随机种子           |
+| d_model        | 512           | 模型内部维度       |
+| d_ff           | 2048          | 前馈网络维度       |
+| n_layers       | 6             | 编码器和解码器层数 |
+| heads          | 8             | 注意力头数         |
+| dropout        | 0.1           | dropout 概率       |
+| max_seq_len    | 100           | 最大序列长度       |
+| batch_size     | 16            | 批次大小           |
+| lr             | 1e-4          | 学习率             |
+| n_epochs       | 60            | 训练轮数           |
+| print_interval | 50            | 打印间隔           |
 
-    其中 `period` 通过命令行参数传入, 表示当前是训练还是验证阶段. 
+其中, 随机种子用于保证实验结果的可重复性, 模型内部维度、前馈网络维度、编码器和解码器层数、注意力头数、dropout 概率、最大序列长度、批次大小、学习率、训练轮数、打印间隔等参数则用于控制模型的训练过程和性能. 我们可以打印出模型的结构和参数量: 
 
-2. 加载数据集
-
-    ```python
-    data_dir = "data/cmn-eng-simple"
-    train_set = TranslationDataset(data_dir, split="train")
-    val_set = TranslationDataset(data_dir, split="val")
-    test_set = TranslationDataset(data_dir, split="test")
-    train_loader = build_dataloader(train_set, batch_size=batch_size)
-    val_loader = build_dataloader(val_set, batch_size=batch_size)
-    test_loader = build_dataloader(test_set, batch_size=batch_size)
-    en2int, cn2int, int2en, int2cn = (
-        train_set.en2int,
-        train_set.cn2int,
-        train_set.int2en,
-        train_set.int2cn,
-    )
-    en_vocab_size = len(en2int)
-    cn_vocab_size = len(cn2int)
-    PAD_ID = en2int["<PAD>"]
-    BOS_ID = cn2int["<BOS>"]
-    ```
-
-    其中,  `build_dataloader` 函数用于构建数据加载器, 代码实现如下: 
-
-    ```python
-    def build_dataloader(dataset, batch_size=32, shuffle=True, num_workers=4):
-        en2int, cn2int = dataset.en2int, dataset.cn2int
-
-        def _collate_fn(batch):
-            en_batch, cn_batch = zip(*batch)
-
-            # 加上 padding, 补齐到相同长度, 默认是在右侧进行 padding
-            en_padded = pad_sequence(
-                en_batch, batch_first=True, padding_value=en2int["<PAD>"]
-            )
-
-            cn_padded = pad_sequence(
-                cn_batch, batch_first=True, padding_value=cn2int["<PAD>"]
-            )
-            return {
-                "source": en_padded,
-                "target": cn_padded,
-            }
-
-        return DataLoader(
-            dataset,
-            batch_size=batch_size,
-            shuffle=shuffle,
-            num_workers=num_workers,
-            collate_fn=_collate_fn,
-        )
-    ```
-
-    `_collate_fn` 函数十分关键, 由于我们需要以矩阵的形式将数据输入模型, 所以我们需要保证每个 batch 中的句子长度一致. 故考虑使用 `torch.nn.utils.rnn.pad_sequence` 函数对每个 batch 中的句子进行 padding, 补齐到相同长度. 默认情况下, padding 是在右侧进行的. 
-
-3. 定义模型 
-
-    由于我们在模型搭建时已经定义好了模型的各个组件, 所以在这里我们只需要实例化模型即可. 代码实现如下: 
-
-    ```python
-    model = Transformer(
-        src_vocab_size=en_vocab_size,
-        dst_vocab_size=cn_vocab_size,
-        pad_idx=PAD_ID,
-        d_model=d_model,
-        d_ff=d_ff,
-        n_layers=n_layers,
-        heads=heads,
-        dropout=dropout,
-        max_seq_len=max_seq_len,
-    ).to(device)
-    ```
-
-    在定义完模型后, 我们可以通过自定义的函数查看一下模型的结构以及参数量: 
-    
-    ```python
-    def print_model_summary(model, depth=3):
-    header = ["Layer (type)", "Output Shape", "Param #", "Trainable"]
-    rows = []
-    total_params = 0
-    trainable_params = 0
-    non_trainable_params = 0
-
-    # 递归遍历模型结构
-    def _add_layer_info(module, name, depth):
-        nonlocal total_params, trainable_params, non_trainable_params
-        params = sum(np.prod(p.size()) for p in module.parameters())
-        if params == 0:
-            return
-
-        # 参数统计
-        trainable = any(p.requires_grad for p in module.parameters())
-        total_params += params
-        if trainable:
-            trainable_params += params
-        else:
-            non_trainable_params += params
-
-        # 构造输出形状（示例）
-        output_shape = (
-            "x".join(str(s) for s in module.example_output_shape)
-            if hasattr(module, "example_output_shape")
-            else "--"
-        )
-
-        # 添加到表格
-        rows.append(
-            [
-                name + f" ({module.__class__.__name__})",
-                f"[{output_shape}]",
-                f"{params:,}",
-                "Yes" if trainable else "No",
-            ]
-        )
-
-        # 递归子模块
-        if depth > 0:
-            for child_name, child_module in module.named_children():
-                _add_layer_info(child_module, f"{name}.{child_name}", depth - 1)
-
-    # 遍历顶层模块
-    for name, module in model.named_children():
-        _add_layer_info(module, name, depth)
-
-    # 打印表格
-    from tabulate import tabulate
-
-    print(tabulate(rows, headers=header, tablefmt="psql"))
-
-    # 参数单位转换
-    def _format_num(num):
-        if num >= 1e6:
-            return f"{num/1e6:.2f}M"
-        elif num >= 1e3:
-            return f"{num/1e3:.1f}K"
-        return str(num)
-
-    # 打印汇总信息
-    print(f"\n{'='*60}")
-    print(f"Total params: {_format_num(total_params)} ({total_params:,})")
-    print(f"Trainable params: {_format_num(trainable_params)} ({trainable_params:,})")
-    print(
-        f"Non-trainable params: {_format_num(non_trainable_params)} ({non_trainable_params:,})"
-    )
-    print(f"Model size: {total_params*4/(1024**2):.2f}MB (FP32)")  # 假设32位浮点
-    print("=" * 60 + "\n")
-    ```
-
-    输出结果如下: 
-
-    ```txt
+```txt
     +-------------------------------------------------------+----------------+------------+-------------+
     | Layer (type)                                          | Output Shape   | Param #    | Trainable   |
     |-------------------------------------------------------+----------------+------------+-------------|
@@ -846,136 +591,21 @@ Chinese:  <BOS> 他 是 老师 .  <EOS>
     Non-trainable params: 0 (0)
     Model size: 710.95MB (FP32)
     ============================================================
-    ```
+```
 
-    可以看到模型的参数量大约为 1.86 亿, 模型大小大约为 710MB. 
+可以看到模型的参数量大约为 1.86 亿, 模型大小大约为 710MB. 
 
-4. 模型训练
+### 模型训练及评估
 
-    该部分的代码与常规深度学习训练过程类似, 故不再赘述, 需要注意的细节可见注释, 代码如下: 
+该部分的代码与常规深度学习训练过程类似, 故不再赘述, 需要注意的细节可见注释, 代码可见 `main.py` 文件. 
 
-    ```python
-    if period == "train":
-        optimizer = Adam(model.parameters(), lr=lr)
-        criterion = nn.CrossEntropyLoss(ignore_index=PAD_ID)
+训练完成后, 我们可以查看一下训练的损失和准确率的变化曲线. 其中, 训练集和验证集上的 Loss 以及 Accuracy 的变化曲线如下图所示: 
 
-        train_losses = []
-        train_accs = []
-        val_losses = []  # 验证损失列表
-        val_accs = []  # 验证准确率列表
+![alt text](figs/accuracy_curve.png)
 
-        for epoch in range(n_epochs):
-            model.train()
-            epoch_total_loss = 0.0
-            epoch_total_correct = 0.0
-            epoch_total_non_pad = 0.0
+![alt text](figs/loss_curve.png)
 
-            count = 1
-            total = len(train_loader)
-
-            tic = time.time()
-            for i, batch in enumerate(train_loader):
-                x = torch.LongTensor(batch["source"]).to(device)  # torch.Size([32, 19])
-                y = torch.LongTensor(batch["target"]).to(device)  # torch.Size([32, 17])
-                # 由于 Transformer 是在用前 i 个 token 预测第 i+1 个 token
-                # 考虑并行计算的话, 我们可以直接输入前 n-1 个 token, 并行预测后 n-1 个 token
-                y_output = y[:, :-1]
-                y_label = y[:, 1:]
-                y_hat = model(x, y_output)
-                y_label_mask = y_label != PAD_ID
-                preds = torch.argmax(y_hat, -1)
-
-                correct = preds == y_label
-                acc = torch.sum(y_label_mask * correct) / torch.sum(y_label_mask)
-
-                n, seq_len = y_label.shape
-                y_hat = torch.reshape(y_hat, (n * seq_len, -1))
-                y_label = torch.reshape(y_label, (n * seq_len,))
-                loss = criterion(y_hat, y_label)
-
-                optimizer.zero_grad()
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), 1)
-                optimizer.step()
-
-                epoch_total_loss += loss.item()
-                current_correct = torch.sum(y_label_mask * correct).item()
-                current_non_pad = torch.sum(y_label_mask).item()
-                epoch_total_correct += current_correct
-                epoch_total_non_pad += current_non_pad
-
-                if count % print_interval == 0 or count == total:
-                    toc = time.time()
-                    interval = toc - tic
-                    minutes = int(interval // 60)
-                    seconds = int(interval % 60)
-                    print(
-                        f"Epoch: [{epoch+1}/{n_epochs}], Batch: [{count}/{total}], "
-                        f"Loss: {loss.item()}, Acc: {acc.item()}, Time: {minutes:02d}:{seconds:02d}"
-                    )
-                count += 1
-            avg_epoch_loss = epoch_total_loss / total
-            avg_epoch_acc = epoch_total_correct / epoch_total_non_pad
-            train_losses.append(avg_epoch_loss)
-            train_accs.append(avg_epoch_acc)
-
-            # 计算验证集准确度
-            model.eval()
-            val_total_loss = 0.0
-            val_total_correct = 0.0
-            val_total_non_pad = 0.0
-            with torch.no_grad():
-                for batch in val_loader:
-                    x = torch.LongTensor(batch["source"]).to(device)
-                    y = torch.LongTensor(batch["target"]).to(device)
-                    y_output = y[:, :-1]
-                    y_label = y[:, 1:]
-
-                    # 前向传播
-                    y_hat = model(x, y_output)
-                    y_label_mask = y_label != PAD_ID
-                    preds = torch.argmax(y_hat, -1)
-
-                    # 计算准确率
-                    correct = preds == y_label
-                    current_correct = torch.sum(y_label_mask * correct).item()
-                    current_non_pad = torch.sum(y_label_mask).item()
-                    val_total_correct += current_correct
-                    val_total_non_pad += current_non_pad
-
-                    # 计算损失
-                    n, seq_len = y_label.shape
-                    y_hat_flat = torch.reshape(y_hat, (n * seq_len, -1))
-                    y_label_flat = torch.reshape(y_label, (n * seq_len,))
-                    loss = criterion(y_hat_flat, y_label_flat)
-                    val_total_loss += loss.item()
-
-            # 计算验证集平均指标
-            avg_val_loss = val_total_loss / len(val_loader)
-            avg_val_acc = val_total_correct / val_total_non_pad
-            val_losses.append(avg_val_loss)
-            val_accs.append(avg_val_acc)
-
-            # 打印训练和验证指标
-            print(
-                f"Epoch: [{epoch+1}/{n_epochs}], "
-                f"Avg Val loss: {avg_val_loss:.4f}, Avg Val acc: {avg_val_acc:.4f}"
-            )
-            print("=" * 100)
-
-        model_path = os.path.join(output_dir, "final_model.pth")
-        torch.save(model.state_dict(), model_path)
-        save_plot(output_dir, train_losses, train_accs, val_losses, val_accs)
-        print("Training completed.")
-    ```
-
-    训练完成后, 我们可以进行一些可视化的操作. 其中, 训练集和验证集上的 Loss 以及 Accuracy 的变化曲线如下图所示: 
-
-    ![alt text](figs/accuracy_curve.png)
-
-    ![alt text](figs/loss_curve.png)
-
-    从图中可以发现, 虽然随着训练 epoch 的增加, 训练集的 Loss 持续下降, Accuracy 持续上升, 但是在第 10 个 epoch 之后, 验证集的 Loss 就开始上升, Accuracy 开始下降, 这说明模型出现了过拟合的现象. 因此, 在该超参数设置下, 模型的最佳效果出现在第 10 个 epoch, 此时验证集的 Loss 最小, Accuracy 最大. 我们可以将该 epoch 的模型保存下来, 作为最终的模型. 
+从图中可以发现, 虽然随着训练 epoch 的增加, 训练集的 Loss 持续下降, Accuracy 持续上升, 但是在第 10 个 epoch 之后, 验证集的 Loss 就开始上升, Accuracy 开始下降, 这说明模型出现了过拟合的现象. 因此, 在该超参数设置下, 模型的最佳效果出现在第 10 个 epoch, 此时验证集的 Loss 最小, Accuracy 最大. 我们可以将该 epoch 的模型保存下来, 作为最终的模型. 
 
 5. 模型评估
 
@@ -1036,7 +666,7 @@ for i in range(3):
 最终的输出结果如下: 
 
 ```txt
-BLEU Score: 0.2322
+BLEU Score: 0.2766
 --------------------------------------------------
 Original: do you still want to talk to me ?
 Standard Answer: 你 还 想 跟 我 谈 吗 ？
@@ -1054,6 +684,58 @@ Translated: 我要 告诉 汤姆 .
 
 BLEU 分数为 0.2322, 说明模型的翻译效果还不错. 同时, 我们可以看到, 手动输出的几个示例中, 模型的翻译效果也较为理想. 虽然有些地方翻译得不是很正确, 例如将 "force" 翻译成了 "忘记", 但整体上还是符合逻辑且较为准确的. 
 
+### 消融实验
+
+在消融实验部分, 我主要从模型结构方面进行了消融实验, 主要探究了不同的注意力头数、不同的编码器和解码器层数和是否使用位置编码对模型性能的影响. 
+
+#### 注意力头数
+
+在 Transformer 模型中, 注意力头数是一个重要的超参数, 它决定了模型在处理序列数据时, 是否能够捕捉到不同位置之间的依赖关系. 当头数较多时, 模型能够并行地在子空间中捕获不同位置之间的依赖关系, 从而提高模型的表达能力, 但同时也可能因影响子空间的大小而降低模型的表达能力. 当头数过少时, 模型可能无法捕捉到足够的信息, 从而影响模型的性能. 因此, 我们需要探究注意力头数对模型性能的影响. 
+
+在本次实验中, 我设置了 5 个不同的注意力头数, 分别为 1, 2, 4, 8, 16, 并计算对应的 BLEU 分数. 实验结果如下: 
+
+| 注意力头数 | BLEU 分数 |
+|------------|-----------|
+| 1          | 0.2307    |
+| 2          | 0.2371    |
+| 4          | 0.2438    |
+| 8          | **0.2766**    |
+| 16         | 0.2408    |
+
+从实验结果可以看出, 当注意力头数为 8 时, 模型的 BLEU 分数最高, 为 0.2766. 当注意力头数为 1 时, 模型的 BLEU 分数最低, 为 0.2307. 注意力头数为 16 时, 模型的 BLEU 分数为 0.2408, 略低于注意力头数为 8 时的 BLEU 分数. 由此也可以看出, 注意力头数并非越多越好, 或越少越好, 而是需要根据具体任务和数据集进行调整. 
+
+#### 编码器和解码器层数
+
+在 Transformer 模型中, 编码器和解码器层数也是十分重要的超参数. 模型的层数直接影响深度和大小, 从而影响模型的表达能力. 
+
+在本次实验中, 我也设置了 5 个不同的编码器和解码器层数, 分别为 1, 2, 4, 6, 8, 10, 并计算对应的 BLEU 分数. 实验结果如下: 
+
+| 编码器和解码器层数 | BLEU 分数 |
+|------------------|-----------|
+| 1                | 0.2134    |
+| 2                | 0.2329    |
+| 4                | 0.2428    |
+| 6                | **0.2766**    |
+| 8                | 0.2594    |
+| 10               | 0.2293    |
+
+从实验结果可以看出, 当层数为 6 时, BLEU 分数最高. 而层数为 10 时, 效果甚至不如层数为 2 时的效果. 这可能是因为层数过多时, 模型可能出现过拟合的现象, 从而影响模型的性能. 
+
+### 位置编码
+
+位置编码对于 Transformer 模型来说, 是一个十分重要的模块. 位置编码的目的是为了将序列中的位置信息编码成向量, 从而让模型能够捕捉到序列中的顺序信息. 若没有位置编码, 模型在并行化处理时, 会丢失序列的顺序信息, 从而影响模型的性能. 因此, 我们需要探究位置编码对模型性能的影响. 
+
+| 位置编码 | BLEU 分数 |
+|------|-----------|
+| ❌ | 0.2175    |
+| ✅ | **0.2766**    |
+
+从实验结果可以看出, 当使用位置编码时, 模型的 BLEU 分数高于不使用位置编码时的 BLEU 分数, 且提升了 0.0591. 由此也可以看出, 位置编码对于 Transformer 模型来说, 是一个十分重要的模块. 
+
+
+
+
+
 ## 💙 项目心得
 
 通过本次实验，我对 Transformer 模型的结构与原理有了更加全面、深入的认识。首先，我详细剖析了多头自注意力机制（Multi‐Head Self‐Attention）、前馈网络（Feed‐Forward Network）以及残差连接与层归一化（Residual Connection & Layer Normalization）三大核心模块的内部运作原理，并通过绘制模型结构图加深记忆。
@@ -1063,6 +745,8 @@ BLEU 分数为 0.2322, 说明模型的翻译效果还不错. 同时, 我们可�
 为了验证模型在机器翻译任务上的效果，我采用了标准的 BLEU 分数作为定量评估指标，并在中英对照语料集上进行了多轮实验。实验结果显示，当训练轮次达到 10 轮以上时，模型就出现了过拟合现象，验证集的 BLEU 分数开始下降。因此，我选择在第 10 轮训练结束后保存模型，并使用该模型进行翻译任务。
 
 在手动检验环节，我随机选取了 3 个测试样本，并使用训练好的模型进行翻译。通过对比标准答案与模型翻译结果，我发现尽管存在一些细节上的不足，但整体翻译效果还是较为令人满意的。
+
+消融实验部分, 我系统地探究了注意力头数、编码器和解码器层数和位置编码对模型性能的影响. 其中, 位置编码对 Transformer 模型的性能极大, 而注意力头数和编码器和解码器层数则需要根据具体的任务和数据集的大小进行调整, 选择最合适的参数. 
 
 通过这次实践，我不仅加深了对前沿模型的理论理解，也在工程实现与实验评估方面积累了宝贵经验，为后续更复杂的自然语言处理项目打下了坚实基础。
 
