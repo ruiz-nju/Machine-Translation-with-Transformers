@@ -38,7 +38,7 @@ pip install -r requirements.txt
 
 ### 数据集配置
 
-本项目使用 [cmn-eng-simple](https://box.nju.edu.cn/d/b8245873f1e44c9fab65/) 数据集, 包含英中平行语料. 通过链接下载后, 将其放置在 `data` 目录, 结构如下: 
+本项目使用 [cmn-eng-simple](https://box.nju.edu.cn/d/7861537a7ae94e2f9c02/) 数据集, 包含英中平行语料. 通过链接下载后, 将其放置在 `data` 目录, 结构如下: 
 
 ```
 data/
@@ -734,8 +734,6 @@ BLEU 分数为 0.2322, 说明模型的翻译效果还不错. 同时, 我们可�
 
 
 
-
-
 ## 💙 项目心得
 
 通过本次实验，我对 Transformer 模型的结构与原理有了更加全面、深入的认识。首先，我详细剖析了多头自注意力机制（Multi‐Head Self‐Attention）、前馈网络（Feed‐Forward Network）以及残差连接与层归一化（Residual Connection & Layer Normalization）三大核心模块的内部运作原理，并通过绘制模型结构图加深记忆。
@@ -750,10 +748,6 @@ BLEU 分数为 0.2322, 说明模型的翻译效果还不错. 同时, 我们可�
 
 通过这次实践，我不仅加深了对前沿模型的理论理解，也在工程实现与实验评估方面积累了宝贵经验，为后续更复杂的自然语言处理项目打下了坚实基础。
 
-
-## 📺 演示视频
-
-[演示视频](https://box.nju.edu.cn/f/e0f8854b0b0a47fbac4c/) 中包含了模型的训练和评估过程.
 
 ## 📜 参考资料
 
